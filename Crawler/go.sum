@@ -1,2 +1,4 @@
 github.com/confluentinc/confluent-kafka-go v1.8.2 h1:PBdbvYpyOdFLehj8j+9ba7FL4c4Moxn79gy9cYKxG5E=
 github.com/confluentinc/confluent-kafka-go v1.8.2/go.mod h1:u2zNLny2xq+5rWeTQjFHbDzzNuba4P1vo31r9r4uAdg=
+github.com/elastic/go-elasticsearch/v7 v7.16.1-0.20211220092752-564732cbb96a h1:I5pZGIk3lqS9LEiWsvtoH7YCwqdvEY+un1+cA4VrX4s=
+github.com/elastic/go-elasticsearch/v7 v7.16.1-0.20211220092752-564732cbb96a/go.mod h1:OJ4wdbtDNk5g503kvlHLyErCgQwwzmDtaFC4XyOxXA4=

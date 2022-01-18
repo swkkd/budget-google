@@ -33,13 +33,18 @@ type Producer struct {
 
 func (p *Producer) Send(s []byte) error {
 
-	delivery_channel := make(chan kafka.Event)
-	p.producer.Produce(&kafka.Message{
+	deliveryChannel := make(chan kafka.Event)
+	err := p.producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &p.topic,
 			Partition: kafka.PartitionAny},
 		Value: s,
-	}, delivery_channel)
-	r := <-delivery_channel
+	}, deliveryChannel)
+
+	if err != nil {
+		return err
+	}
+
+	r := <-deliveryChannel
 	m := r.(*kafka.Message)
 
 	return m.TopicPartition.Error

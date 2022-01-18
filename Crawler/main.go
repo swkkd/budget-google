@@ -2,12 +2,16 @@ package main
 
 import (
 	"fmt"
-
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/swkkd/budget-google/crawler/htmlParser"
+	"github.com/swkkd/budget-google/crawler/searchEngine"
 )
 
 func main() {
+	//connect to elastic search
+	searchEngine.ConnectToES()
 
+	//connect to kafka
 	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers": "localhost",
 		"group.id":          "GROUP-1",
@@ -38,6 +42,7 @@ func main() {
 
 		totalCount += 1
 		fmt.Printf("Consumed record with value %s... total count: %v\n", recordValue, totalCount)
+		htmlParser.Parser(recordValue)
 	}
 
 }
