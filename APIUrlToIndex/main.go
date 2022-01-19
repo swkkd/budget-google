@@ -109,3 +109,5 @@ func (co *Controller) sendUrlToIndex(c echo.Context) error {
 
 	return c.Render(http.StatusOK, "index.html", nil)
 }
+
+//todo return the response to the html page if url added successfully!

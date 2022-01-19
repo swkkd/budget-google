@@ -8,9 +8,6 @@ import (
 )
 
 func main() {
-	//connect to elastic search
-	searchEngine.ConnectToES()
-
 	//connect to kafka
 	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers": "localhost",
@@ -28,6 +25,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	//connect to elastic search
+	searchEngine.ConnectToES()
 
 	totalCount := 0
 

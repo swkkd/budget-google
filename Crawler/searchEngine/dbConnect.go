@@ -5,9 +5,10 @@ import (
 	"log"
 )
 
-type UrlContents struct {
-	ID   int    `json:"id"`
-	Body string `json:"body"`
+type UrlContent struct {
+	ID   int
+	Url  string
+	Body string
 }
 
 func ConnectToES() {

@@ -2,9 +2,11 @@ package htmlParser
 
 import (
 	"fmt"
+	"golang.org/x/net/html"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 )
 
 //todo обработать ошибку с невалидным url?
@@ -26,6 +28,30 @@ func Parser(url []byte) ([]byte, error) {
 		return nil, err
 	}
 	// show the HTML code as a string %s
-	fmt.Printf("%s\n ", html)
+	//fmt.Printf("%s\n ", html)
+	HTMLToReadable(html) // convert html to readable
 	return html, nil
+}
+
+func HTMLToReadable(s []byte) {
+	domDocTest := html.NewTokenizer(strings.NewReader(string(s)))
+	previousStartTokenTest := domDocTest.Token()
+loopDomTest:
+	for {
+		tt := domDocTest.Next()
+		switch {
+		case tt == html.ErrorToken:
+			break loopDomTest // End of the document,  done
+		case tt == html.StartTagToken:
+			previousStartTokenTest = domDocTest.Token()
+		case tt == html.TextToken:
+			if previousStartTokenTest.Data == "script" {
+				continue
+			}
+			TxtContent := strings.TrimSpace(html.UnescapeString(string(domDocTest.Text())))
+			if len(TxtContent) > 0 {
+				fmt.Printf("%s\n", TxtContent)
+			}
+		}
+	}
 }
