@@ -5,13 +5,14 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"text/template"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/labstack/echo/v4"
 )
 
-const topic string = "api-to-index"
+const TOPIC string = "api-to-index"
 
 // TemplateRenderer is a custom html/template renderer for Echo framework
 type TemplateRenderer struct {
@@ -71,9 +72,8 @@ func (t *TemplateRenderer) Render(w io.Writer, name string, data interface{}, c 
 	return t.templates.ExecuteTemplate(w, name, data)
 }
 
-//todo const topic
 func main() {
-	p, err := NewProducer(topic)
+	p, err := NewProducer(TOPIC)
 	if err != nil {
 		panic(err)
 	}
@@ -94,17 +94,24 @@ func main() {
 	e.POST("/urltoparse", controller.sendUrlToIndex)
 	e.Logger.Fatal(e.Start(":9001"))
 }
+func IsUrl(str string) bool {
+	u, err := url.Parse(str)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
 
 // get JSON (id and URL) from POST request and send it to kafka?
 func (co *Controller) sendUrlToIndex(c echo.Context) error {
 	var urls urlToIndex
 	urls.url = c.FormValue("url")
-	log.Printf("URL: %v", urls.url)
+	if IsUrl(urls.url) == true {
+		log.Printf("URL: %v", urls.url)
 
-	err := co.producer.Send([]byte(urls.url))
-
-	if err != nil {
-		return c.String(http.StatusInternalServerError, err.Error())
+		err := co.producer.Send([]byte(urls.url))
+		if err != nil {
+			return c.String(http.StatusInternalServerError, err.Error())
+		}
+	} else {
+		log.Printf("%s IS NOT VALID URL!", urls.url)
 	}
 
 	return c.Render(http.StatusOK, "index.html", nil)

@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/swkkd/budget-google/crawler/htmlParser"
 	"github.com/swkkd/budget-google/crawler/searchEngine"
@@ -18,7 +20,7 @@ func main() {
 		fmt.Printf("Failed to create consumer: %s", err)
 		panic(err)
 	} else {
-		fmt.Println("Consumer created successfully")
+		log.Println("KAFKA CONSUMER CREATED!")
 	}
 	defer consumer.Close()
 	err = consumer.Subscribe("api-to-index", nil)
@@ -28,7 +30,6 @@ func main() {
 
 	//connect to elastic search
 	searchEngine.ConnectToES()
-
 	totalCount := 0
 
 	for {
@@ -38,11 +39,20 @@ func main() {
 			// Errors are informational and automatically handled by the consumer
 			continue
 		}
-		recordValue := msg.Value
-
+		recordValue := string(msg.Value)
 		totalCount += 1
 		fmt.Printf("Consumed record with value %s... total count: %v\n", recordValue, totalCount)
-		htmlParser.Parser(recordValue)
+		// html, err := htmlParser.Parser(recordValue)
+		// if err != nil {
+		// 	log.Printf("ERROR PARSING: %s", err)
+		// }
+		//url, body := htmlParser.HTMLToReadable(string(recordValue))
+		// log.Printf("INSERTING INTO DB: --[URL: %s]-- \n --[%s]--", recordValue, html)
+		body := htmlParser.HtmlToReadable(recordValue)
+		fmt.Println(body)
+		searchEngine.Insert(recordValue, body)
+		//searchEngine.ConnectToES(string(html), string(url))
+		//fmt.Printf("URL: %s %s", string(url), string(body))
 	}
 
 }
