@@ -1,33 +1,22 @@
 package main
 
 import (
+	"github.com/gorilla/mux"
 	"github.com/swkkd/budget-google/APISearchRequest/searchEngine"
 	"html/template"
-	"io"
+	"log"
 	"net/http"
-
-	"github.com/labstack/echo/v4"
 )
 
 //Template is a custom html/template renderer for Echo framework
-type Template struct {
-	templates *template.Template
-}
 
 //main start webserver
 func main() {
-	e := echo.New()
+	r := mux.NewRouter()
+	r.HandleFunc("/", search).Queries("search", "{search}")
+	http.Handle("/", r)
 
-	t := &Template{
-		templates: template.Must(template.ParseFiles("html/search.html")),
-	}
-	e.Renderer = t
-
-	//Controller
-	e.GET("/", search)
-	e.GET("/search", search)
-
-	e.Logger.Fatal(e.Start(":9002"))
+	http.ListenAndServe(":9002", r)
 }
 
 ////helloWorld simple hello world webpage
@@ -35,13 +24,21 @@ func main() {
 //	return c.String(http.StatusOK, "Hello World")
 //}
 
-func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-	return t.templates.ExecuteTemplate(w, name, data)
-}
+func search(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	search := vars["search"]
+	req := searchEngine.Search(search)
+	log.Printf("RENDERING: %#v", req)
+	//fmt.Fprintf(w, "<html>"+html.UnescapeString(req[0].ContentOfPage))
+	tmpl, err := template.ParseFiles("html/search.html")
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
 
-func search(c echo.Context) error {
-	search := c.QueryParam("search")
-	r := searchEngine.Search(search)
+	if err := tmpl.Execute(w, req); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
 
-	return c.Render(http.StatusOK, "search.html", r)
 }

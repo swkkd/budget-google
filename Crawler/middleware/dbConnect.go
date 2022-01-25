@@ -8,11 +8,19 @@ import (
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"log"
 	"strings"
+	"time"
 )
 
+// ESData todo add timestamp
 type ESData struct {
-	ContentOfPage string `json:"contentOfPage"`
-	URL           string `json:"URL"`
+	ParseData []ParseData `json:"parseData"`
+	ParseDate time.Time   `json:"parseDate"`
+}
+
+// ParseData todo in the elasticsearch parsedata shouldn't be nested
+type ParseData struct {
+	URL           string   `json:"url"`
+	ContentOfPage []string `json:"contentOfPage"`
 }
 
 //todo create database migrations?
@@ -58,7 +66,7 @@ func ConnectToES() {
 }
 
 // Insert insert data into elastic search
-func Insert(url string, body string) {
+func Insert(url string, body []string) {
 
 	log.SetFlags(0)
 
@@ -72,19 +80,28 @@ func Insert(url string, body string) {
 		log.Fatalf("Error creating the client: %s", err)
 	}
 
-	doc := ESData{ContentOfPage: body, URL: url}
+	//todo receive timestamp at the other side
+	doc := &ESData{
+		ParseDate: time.Now(),
+		ParseData: []ParseData{
+			{
+				ContentOfPage: body,
+				URL:           url,
+			},
+		},
+	}
+
 	payload, err := json.Marshal(doc)
 	if err != nil {
 		panic(err)
 	}
 
 	req := esapi.IndexRequest{
-		Index: "budget-google",
+		Index: "my-index-000001",
 		//DocumentID: strconv.Itoa(i + 1),
 		Body:    bytes.NewReader(payload),
 		Refresh: "true",
 	}
-	//log.Print(reader)
 
 	res, err := req.Do(context.Background(), es)
 

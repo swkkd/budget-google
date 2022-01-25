@@ -4,22 +4,24 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/elastic/go-elasticsearch/v8"
 	_ "github.com/elastic/go-elasticsearch/v8/esapi"
+	"html/template"
 	"log"
 	"strings"
 )
 
 type ESSingleResponse struct {
-	response *ESResponses
+	response *ESResponse
 }
 
-type ESResponses struct {
+type ESResponse struct {
 	Url           interface{}
-	ContentOfPage interface{}
+	ContentOfPage template.HTML
 }
 
-func Search(searchQuery string) []ESResponses {
+func Search(searchQuery string) []ESResponse {
 	log.SetFlags(0)
 
 	var (
@@ -64,13 +66,41 @@ func Search(searchQuery string) []ESResponses {
 	// ---------------------------
 
 	var buf bytes.Buffer
+	//query := map[string]interface{}{
+	//	"query": map[string]interface{}{
+	//		"match": map[string]interface{}{
+	//			"contentOfPage": searchQuery,
+	//		},
+	//	},
+	//}
+
 	query := map[string]interface{}{
 		"query": map[string]interface{}{
-			"match": map[string]interface{}{
-				"contentOfPage": searchQuery,
+			"nested": map[string]interface{}{
+				"path": "parseData",
+				"query": map[string]interface{}{
+					"bool": map[string]interface{}{
+						"must": map[string]interface{}{
+							"match": map[string]interface{}{
+								"parseData.contentOfPage": searchQuery,
+							},
+						},
+					},
+				},
+				"inner_hits": map[string]interface{}{
+					"highlight": map[string]interface{}{
+						"fields": map[string]interface{}{
+							"parseData.contentOfPage": map[string]interface{}{
+								"pre_tags":  "<mark>",
+								"post_tags": "</mark>",
+							},
+						},
+					},
+				},
 			},
 		},
 	}
+
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
 		log.Fatalf("Error encoding query: %s", err)
 	}
@@ -78,7 +108,7 @@ func Search(searchQuery string) []ESResponses {
 	// Perform the search request.
 	res, err = es.Search(
 		es.Search.WithContext(context.Background()),
-		es.Search.WithIndex("budget-google"),
+		es.Search.WithIndex("my-index-000001"),
 		es.Search.WithBody(&buf),
 		es.Search.WithTrackTotalHits(true),
 		es.Search.WithPretty(),
@@ -113,20 +143,24 @@ func Search(searchQuery string) []ESResponses {
 		int(r["took"].(float64)),
 	)
 	//log.Printf("RESPONSE: ------------ %s", r)
-	// Print the ID and document source for each hit.
-	var responses []ESResponses
+	// Print the ID and document sourcstring(hitsContent)e for each hit.
+	var responses []ESResponse
 	for _, hit := range r["hits"].(map[string]interface{})["hits"].([]interface{}) {
 		//log.Printf(" * ID=%s, %s", hit.(map[string]interface{})["_id"], hit.(map[string]interface{})["_source"].(map[string]interface{})["URL"])
-		singleResponse := ESResponses{
-			Url:           hit.(map[string]interface{})["_source"].(map[string]interface{})["URL"],
-			ContentOfPage: hit.(map[string]interface{})["_source"].(map[string]interface{})["contentOfPage"],
-		}
+		hitsContent := hit.(map[string]interface{})["inner_hits"].(map[string]interface{})["parseData"].(map[string]interface{})["hits"].(map[string]interface{})["hits"].([]interface{})[0].(map[string]interface{})["highlight"].(map[string]interface{})["parseData.contentOfPage"].([]interface{})
+		singleResponse := ESResponse{
 
+			//Url:           hit.(map[string]interface{})["_source"].(map[string]interface{})["parseData"].([]interface{})[0].(map[string]interface{})["url"],
+			//ContentOfPage: hit.(map[string]interface{})["_source"].(map[string]interface{})["parseData"].([]interface{})[0].(map[string]interface{})["contentOfPage"],
+			Url:           hit.(map[string]interface{})["_source"].(map[string]interface{})["parseData"].([]interface{})[0].(map[string]interface{})["url"],
+			ContentOfPage: template.HTML(fmt.Sprintf("%v", hitsContent)),
+		}
 		responses = append(responses, singleResponse)
 
 	}
-	log.Println(responses)
+	log.Printf("%v", responses)
 
 	log.Println(strings.Repeat("=", 37))
 	return responses
+
 }

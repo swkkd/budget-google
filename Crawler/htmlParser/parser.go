@@ -1,7 +1,6 @@
 package htmlParser
 
 import (
-	"bytes"
 	"io"
 	"log"
 	"net/http"
@@ -32,7 +31,7 @@ import (
 //	return string(htmll), nil
 //}
 
-func HtmlToReadable(s string) string {
+func HtmlToReadable(s string) []string {
 	response, err := http.Get(s)
 	if err != nil {
 		log.Fatal(err)
@@ -50,8 +49,8 @@ func HtmlToReadable(s string) string {
 
 	tokenizer := html.NewTokenizer(response.Body)
 
-	var b bytes.Buffer
-
+	var b []string
+	//var b bytes.Buffer
 	for {
 		tt := tokenizer.Next()
 		token := tokenizer.Token()
@@ -79,11 +78,12 @@ func HtmlToReadable(s string) string {
 				data := strings.TrimSpace(token.Data)
 
 				if len(data) > 0 {
-					b.WriteString(data + " ")
+					//b.WriteString(" " + data)
+					b = append(b, data)
 					// fmt.Println(data)
 				}
 			}
 		}
 	}
-	return b.String()
+	return b
 }
