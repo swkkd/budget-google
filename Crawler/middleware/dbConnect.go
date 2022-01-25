@@ -1,4 +1,4 @@
-package searchEngine
+package middleware
 
 import (
 	"bytes"
@@ -14,6 +14,8 @@ type ESData struct {
 	ContentOfPage string `json:"contentOfPage"`
 	URL           string `json:"URL"`
 }
+
+//todo create database migrations?
 
 // ConnectToES connects to ES and create new client
 //basically it only checks if database is UP

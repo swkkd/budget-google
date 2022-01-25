@@ -6,7 +6,7 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/swkkd/budget-google/crawler/htmlParser"
-	"github.com/swkkd/budget-google/crawler/searchEngine"
+	"github.com/swkkd/budget-google/crawler/middleware"
 )
 
 func main() {
@@ -29,7 +29,7 @@ func main() {
 	}
 
 	//connect to elastic search
-	searchEngine.ConnectToES()
+	middleware.ConnectToES()
 	totalCount := 0
 
 	for {
@@ -50,8 +50,8 @@ func main() {
 		// log.Printf("INSERTING INTO DB: --[URL: %s]-- \n --[%s]--", recordValue, html)
 		body := htmlParser.HtmlToReadable(recordValue)
 		fmt.Println(body)
-		searchEngine.Insert(recordValue, body)
-		//searchEngine.ConnectToES(string(html), string(url))
+		middleware.Insert(recordValue, body)
+		//middleware.ConnectToES(string(html), string(url))
 		//fmt.Printf("URL: %s %s", string(url), string(body))
 	}
 

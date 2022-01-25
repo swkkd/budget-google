@@ -99,7 +99,6 @@ func IsUrl(str string) bool {
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
 
-// get JSON (id and URL) from POST request and send it to kafka?
 func (co *Controller) sendUrlToIndex(c echo.Context) error {
 	var urls urlToIndex
 	urls.url = c.FormValue("url")
