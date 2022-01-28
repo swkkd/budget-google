@@ -2,43 +2,61 @@ package main
 
 import (
 	"github.com/gorilla/mux"
-	"github.com/swkkd/budget-google/APISearchRequest/searchEngine"
-	"html/template"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/swkkd/budget-google/APISearchRequest/handlers"
 	"log"
 	"net/http"
 )
 
-//Template is a custom html/template renderer for Echo framework
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func NewResponseWriter(w http.ResponseWriter) *responseWriter {
+	return &responseWriter{w, http.StatusOK}
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+var totalRequests = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "api_search_request_http_requests_total",
+		Help: "Number of get requests.",
+	},
+	[]string{"path"},
+)
+
+func prometheusMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		route := mux.CurrentRoute(r)
+		path, _ := route.GetPathTemplate()
+
+		rw := NewResponseWriter(w)
+		next.ServeHTTP(rw, r)
+
+		totalRequests.WithLabelValues(path).Inc()
+	})
+}
+
+func init() {
+	prometheus.Register(totalRequests)
+}
 
 //main start webserver
 func main() {
-	r := mux.NewRouter()
-	r.HandleFunc("/", search).Queries("search", "{search}")
-	http.Handle("/", r)
+	router := mux.NewRouter()
+	router.Use(prometheusMiddleware)
+	router.HandleFunc("/", handlers.SearchHandler).Queries("search", "{search}")
 
-	http.ListenAndServe(":9002", r)
-}
+	router.Path("/metrics").Handler(promhttp.Handler())
 
-////helloWorld simple hello world webpage
-//func helloWorld(c echo.Context) error {
-//	return c.String(http.StatusOK, "Hello World")
-//}
+	http.Handle("/", router)
 
-func search(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	search := vars["search"]
-	req := searchEngine.Search(search)
-	log.Printf("RENDERING: %#v", req)
-	//fmt.Fprintf(w, "<html>"+html.UnescapeString(req[0].ContentOfPage))
-	tmpl, err := template.ParseFiles("html/search.html")
-	if err != nil {
-		http.Error(w, err.Error(), 400)
-		return
-	}
-
-	if err := tmpl.Execute(w, req); err != nil {
-		http.Error(w, err.Error(), 400)
-		return
-	}
-
+	err := http.ListenAndServe(":9002", router)
+	log.Fatal(err)
 }

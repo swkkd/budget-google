@@ -26,13 +26,8 @@ func Search(searchQuery string) []ESResponse {
 
 	var (
 		r map[string]interface{}
-		//wg sync.WaitGroup
 	)
 
-	// Initialize a client with the default settings.
-	//
-	// An `ELASTICSEARCH_URL` environment variable will be used when exported.
-	//
 	cfg := elasticsearch.Config{
 		Addresses: []string{
 			"http://192.168.1.75:9200"},
@@ -66,13 +61,6 @@ func Search(searchQuery string) []ESResponse {
 	// ---------------------------
 
 	var buf bytes.Buffer
-	//query := map[string]interface{}{
-	//	"query": map[string]interface{}{
-	//		"match": map[string]interface{}{
-	//			"contentOfPage": searchQuery,
-	//		},
-	//	},
-	//}
 
 	query := map[string]interface{}{
 		"query": map[string]interface{}{

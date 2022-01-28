@@ -9,28 +9,6 @@ import (
 	"golang.org/x/net/html"
 )
 
-//func Parser(url string) (string, error) {
-//	log.Printf("Parser received :: %s ...\n", url)
-//	resp, err := http.Get(url)
-//	// handle the error if there is one
-//	if err != nil {
-//		log.Printf("error get: %v", err)
-//		return "", err
-//	}
-//	// do this now so it won't be forgotten
-//	defer resp.Body.Close()
-//	// reads html as a slice of bytes
-//	htmll, err := ioutil.ReadAll(resp.Body)
-//	if err != nil {
-//		log.Printf("error readall: %v", err)
-//		return "", err
-//	}
-//	// show the HTML code as a string %s
-//	//fmt.Printf("%s\n ", html)
-//	//HTMLToReadable(html) // convert html to readable
-//	return string(htmll), nil
-//}
-
 func HtmlToReadable(s string) []string {
 	response, err := http.Get(s)
 	if err != nil {

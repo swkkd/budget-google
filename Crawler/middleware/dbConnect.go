@@ -32,7 +32,7 @@ func ConnectToES() {
 		r map[string]interface{}
 	)
 	//if config is not specified it uses default port to connect to! use
-	//.NewClient(cfg) to connect to specific port!
+	//.NewClient(prometheus) to connect to specific port!
 	cfg := elasticsearch.Config{
 		Addresses: []string{
 			"http://192.168.1.75:9200"},
@@ -98,6 +98,7 @@ func Insert(url string, body []string) {
 
 	req := esapi.IndexRequest{
 		Index: "my-index-000001",
+		//i dont specify the document id so ES can generate one
 		//DocumentID: strconv.Itoa(i + 1),
 		Body:    bytes.NewReader(payload),
 		Refresh: "true",

@@ -12,6 +12,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// TOPIC todo .conf file
 const TOPIC string = "api-to-index"
 
 // TemplateRenderer is a custom html/template renderer for Echo framework
@@ -56,6 +57,8 @@ func (p *Producer) Close() {
 	p.producer.Close()
 }
 
+//todo create conf file
+
 func NewProducer(topic string) (*Producer, error) {
 	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "localhost"})
 	if err != nil {
@@ -84,7 +87,7 @@ func main() {
 	e := echo.New()
 
 	renderer := &TemplateRenderer{
-		templates: template.Must(template.ParseGlob("static/index.html")),
+		templates: template.Must(template.ParseGlob("html/index.html")),
 	}
 	e.Renderer = renderer
 
