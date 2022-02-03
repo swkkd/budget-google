@@ -2,121 +2,98 @@ package main
 
 import (
 	_ "encoding/json"
-	"io"
+	"fmt"
+	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/swkkd/budget-google/APIUrlToIndex/middleware"
+	"html/template"
 	"log"
 	"net/http"
 	"net/url"
-	"text/template"
-
-	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/labstack/echo/v4"
+	"os"
 )
 
-// TOPIC todo .conf file
-const TOPIC string = "api-to-index"
-
-// TemplateRenderer is a custom html/template renderer for Echo framework
-type TemplateRenderer struct {
-	templates *template.Template
-}
+var kafkaServer, kafkaTopic string
 
 type urlToIndex struct {
 	url string
 }
 
-type Controller struct {
-	producer *Producer
-}
+func init() {
+	kafkaServer = readFromENV("KAFKA_BROKER", "localhost:29092")
+	kafkaTopic = readFromENV("KAFKA_TOPIC", "api-to-index")
 
-type Producer struct {
-	producer *kafka.Producer
-	topic    string
-}
+	fmt.Println("Kafka Broker - ", kafkaServer)
+	fmt.Println("Kafka topic - ", kafkaTopic)
 
-func (p *Producer) Send(s []byte) error {
-
-	deliveryChannel := make(chan kafka.Event)
-	err := p.producer.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &p.topic,
-			Partition: kafka.PartitionAny},
-		Value: s,
-	}, deliveryChannel)
-
+	err := prometheus.Register(middleware.TotalRequests)
 	if err != nil {
-		return err
+		log.Printf("Failed to register prometheus data with error: %s", err)
 	}
-
-	r := <-deliveryChannel
-	m := r.(*kafka.Message)
-
-	return m.TopicPartition.Error
-}
-
-func (p *Producer) Close() {
-	p.producer.Flush(1 * 1000)
-	p.producer.Close()
-}
-
-//todo create conf file
-
-func NewProducer(topic string) (*Producer, error) {
-	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "localhost"})
-	if err != nil {
-		return nil, err
-	}
-	return &Producer{p, topic}, nil
-}
-
-func NewController(p *Producer) (c *Controller) {
-	return &Controller{producer: p}
-}
-
-func (t *TemplateRenderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-	return t.templates.ExecuteTemplate(w, name, data)
 }
 
 func main() {
-	p, err := NewProducer(TOPIC)
+	p, err := NewProducer(kafkaTopic)
 	if err != nil {
 		panic(err)
 	}
 
 	defer p.Close()
 	controller := NewController(p)
+	router := mux.NewRouter()
+	router.Use(middleware.PrometheusMiddleware)
+	router.HandleFunc("/", controller.sendUrlToIndex)
 
-	e := echo.New()
+	router.Path("/metrics").Handler(promhttp.Handler())
 
-	renderer := &TemplateRenderer{
-		templates: template.Must(template.ParseGlob("html/index.html")),
-	}
-	e.Renderer = renderer
+	http.Handle("/", router)
 
-	e.GET("/urltoparse", func(c echo.Context) error {
-		return c.Render(http.StatusOK, "index.html", nil)
-	})
-	e.POST("/urltoparse", controller.sendUrlToIndex)
-	e.Logger.Fatal(e.Start(":9001"))
+	err = http.ListenAndServe(":9001", router)
+	log.Fatal(err)
 }
 func IsUrl(str string) bool {
 	u, err := url.Parse(str)
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
 
-func (co *Controller) sendUrlToIndex(c echo.Context) error {
+//todo check if the url is already parsed
+//todo some sort of visualization what urls are already in DB
+//todo check if parsed data is up-to-date
+
+func (co *Controller) sendUrlToIndex(w http.ResponseWriter, r *http.Request) {
 	var urls urlToIndex
-	urls.url = c.FormValue("url")
+	tmpl, err := template.ParseFiles("html/index.html")
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	if err := tmpl.Execute(w, nil); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	if r.Method == "POST" {
+		urls.url = r.FormValue("url")
+	}
 	if IsUrl(urls.url) == true {
 		log.Printf("URL: %v", urls.url)
 
 		err := co.producer.Send([]byte(urls.url))
 		if err != nil {
-			return c.String(http.StatusInternalServerError, err.Error())
+			log.Fatal(err)
 		}
+
 	} else {
 		log.Printf("%s IS NOT VALID URL!", urls.url)
 	}
+}
 
-	return c.Render(http.StatusOK, "index.html", nil)
+func readFromENV(key, defaultVal string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultVal
+	}
+	return value
 }
 
 //todo return the response to the html page if url added successfully!

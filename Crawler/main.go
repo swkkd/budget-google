@@ -2,17 +2,25 @@ package main
 
 import (
 	"fmt"
-	"log"
-
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/swkkd/budget-google/crawler/htmlParser"
 	"github.com/swkkd/budget-google/crawler/middleware"
+	"log"
+	"os"
 )
 
+var kafkaServer, kafkaTopic string
+
+func init() {
+	kafkaServer = readFromENV("KAFKA_BROKER", "localhost:29092")
+	kafkaTopic = readFromENV("KAFKA_TOPIC", "api-to-index")
+
+	fmt.Println("Kafka Broker - ", kafkaServer)
+	fmt.Println("Kafka topic - ", kafkaTopic)
+}
 func main() {
 	//connect to kafka
 	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": "localhost",
+		"bootstrap.servers": kafkaServer,
 		"group.id":          "GROUP-1",
 		"auto.offset.reset": "smallest"})
 
@@ -22,8 +30,13 @@ func main() {
 	} else {
 		log.Println("KAFKA CONSUMER CREATED!")
 	}
-	defer consumer.Close()
-	err = consumer.Subscribe("api-to-index", nil)
+	defer func(consumer *kafka.Consumer) {
+		err := consumer.Close()
+		if err != nil {
+			log.Printf("consumer Close faulure! %v", err)
+		}
+	}(consumer)
+	err = consumer.Subscribe(kafkaTopic, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -33,7 +46,6 @@ func main() {
 	totalCount := 0
 
 	for {
-
 		msg, err := consumer.ReadMessage(1 * 100)
 		if err != nil {
 			// Errors are informational and automatically handled by the consumer
@@ -42,17 +54,25 @@ func main() {
 		recordValue := string(msg.Value)
 		totalCount += 1
 		fmt.Printf("Consumed record with value %s... total count: %v\n", recordValue, totalCount)
-		// html, err := htmlParser.Parser(recordValue)
-		// if err != nil {
-		// 	log.Printf("ERROR PARSING: %s", err)
-		// }
-		//url, body := htmlParser.HTMLToReadable(string(recordValue))
-		// log.Printf("INSERTING INTO DB: --[URL: %s]-- \n --[%s]--", recordValue, html)
-		body := htmlParser.HtmlToReadable(recordValue)
-		fmt.Println(body)
+
+		body, err := middleware.HtmlToReadable(recordValue)
+		if err != nil {
+			// Errors are informational and automatically handled by the consumer
+			continue
+		}
+		//fmt.Println(body)
 		middleware.Insert(recordValue, body)
-		//middleware.ConnectToES(string(html), string(url))
-		//fmt.Printf("URL: %s %s", string(url), string(body))
+
 	}
 
 }
+func readFromENV(key, defaultVal string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultVal
+	}
+	return value
+}
+
+//todo prometheus metrics
+//todo

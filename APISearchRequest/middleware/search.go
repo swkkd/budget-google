@@ -1,4 +1,4 @@
-package searchEngine
+package middleware
 
 import (
 	"bytes"
@@ -130,16 +130,12 @@ func Search(searchQuery string) []ESResponse {
 		int(r["hits"].(map[string]interface{})["total"].(map[string]interface{})["value"].(float64)),
 		int(r["took"].(float64)),
 	)
-	//log.Printf("RESPONSE: ------------ %s", r)
-	// Print the ID and document sourcstring(hitsContent)e for each hit.
+
 	var responses []ESResponse
 	for _, hit := range r["hits"].(map[string]interface{})["hits"].([]interface{}) {
 		//log.Printf(" * ID=%s, %s", hit.(map[string]interface{})["_id"], hit.(map[string]interface{})["_source"].(map[string]interface{})["URL"])
 		hitsContent := hit.(map[string]interface{})["inner_hits"].(map[string]interface{})["parseData"].(map[string]interface{})["hits"].(map[string]interface{})["hits"].([]interface{})[0].(map[string]interface{})["highlight"].(map[string]interface{})["parseData.contentOfPage"].([]interface{})
 		singleResponse := ESResponse{
-
-			//Url:           hit.(map[string]interface{})["_source"].(map[string]interface{})["parseData"].([]interface{})[0].(map[string]interface{})["url"],
-			//ContentOfPage: hit.(map[string]interface{})["_source"].(map[string]interface{})["parseData"].([]interface{})[0].(map[string]interface{})["contentOfPage"],
 			Url:           hit.(map[string]interface{})["_source"].(map[string]interface{})["parseData"].([]interface{})[0].(map[string]interface{})["url"],
 			ContentOfPage: template.HTML(fmt.Sprintf("%v", hitsContent)),
 		}

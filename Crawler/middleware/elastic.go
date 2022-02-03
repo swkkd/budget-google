@@ -17,13 +17,16 @@ type ESData struct {
 	ParseDate time.Time   `json:"parseDate"`
 }
 
-// ParseData todo in the elasticsearch parsedata shouldn't be nested
+// ParseData todo in the elasticsearch parsedata shouldn't be nested field
 type ParseData struct {
 	URL           string   `json:"url"`
 	ContentOfPage []string `json:"contentOfPage"`
 }
 
-//todo create database migrations?
+/*todo
+create database if it doesnt exist
+should i do it here in code?
+*/
 
 // ConnectToES connects to ES and create new client
 //basically it only checks if database is UP

@@ -1,43 +1,44 @@
-version: '3.3'
+version: '3.7'
 services:
   zookeeper:
-    image: wurstmeister/zookeeper:latest
-    container_name: zookeeper
-    #logging:
-      #driver: none
-      
-  kafka:
-    image: wurstmeister/kafka:latest
-    container_name: kafka
+    image: confluentinc/cp-zookeeper:latest
     environment:
-      KAFKA_MESSAGE_MAX_BYTES: 1000000 
-      KAFKA_NUM_NETWORK_THREADS: 3
-      KAFKA_NUM_IO_THREADS: 8
-      KAFKA_BACKGROUND_THREADS: 10
-      KAFKA_SOCKET_SEND_BUFFER_BYTES: 102400
-      KAFKA_SOCKET_RECEIVE_BUFFER_BYTES: 102400
-      KAFKA_SOCKET_REQUEST_MAX_BYTES: 104857600
-      KAFKA_NUM_RECOVERY_THREADS_PER_DATA_DIR: 1
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_LOG_RETENTION_HOURS: 24
-      KAFKA_LOG_SEGMENT_BYTES: 1073741824
-      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 3
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
-      KAFKA_LISTENERS: PLAINTEXT://127.0.0.1:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:9092
-      KAFKA_BROKER_ID: 0
-      KAFKA_ADVERTISED_HOST_NAME: 127.0.0.1
-      KAFKA_CREATE_TOPICS: "api-to-index:3:1"
-      KAFKA_ZOOKEEPER_CONNECT: 127.0.0.1:2181
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    depends_on: 
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICKTIME: 2000
+
+  kafka:
+    # "`-.,-'"-._,-'"-.,-'"`-.,-'"-._,-'"-.,-'"`-.,-'"-._,-'"-._,-
+    # An important note about accessing Kafka from clients on other machines:
+    # -----------------------------------------------------------------------
+    #
+    # The config used here exposes port 29092 for external connections to the broker
+    # i.e. those from outside the docker network. This could be from the host machine
+    # running docker, or maybe further afield if you've got a more complicated setup.
+    # If the latter is true, you will need to change the value 'localhost' in
+    # KAFKA_ADVERTISED_LISTENERS to one that is resolvable to the docker host from those
+    # remote clients
+    #
+    # For connections internal to the docker network, such as from other services
+    # and components, use kafka:9092.
+    #
+    # See https://rmoff.net/2018/08/02/kafka-listeners-explained/ for details
+    # "-._,-'"-.,-'"`-.,-'"-._,-'"-.,-'"`-.,-'"-._,-'"-.,-'"`-.,-
+    #
+    image: confluentinc/cp-kafka:latest
+    depends_on:
       - zookeeper
-    #logging:
-      #driver: none
+    ports:
+      - 29092:29092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CREATE_TOPICS: "api-to-index:3:1"
+
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -66,9 +67,14 @@ services:
     restart: always
     ports:
       - '9002:9002'
+    depends_on:
+      - kafka
 
   api-url-to-index:
     build: APIUrlToIndex/
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPIC=api-to-index
     container_name: APIUrlToIndex
     restart: always
     ports:
@@ -77,6 +83,9 @@ services:
   crawler:
     build: Crawler/
     container_name: Crawler
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPIC=api-to-index
     restart: always
 
 

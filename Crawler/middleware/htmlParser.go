@@ -1,4 +1,4 @@
-package htmlParser
+package middleware
 
 import (
 	"io"
@@ -9,10 +9,11 @@ import (
 	"golang.org/x/net/html"
 )
 
-func HtmlToReadable(s string) []string {
+func HtmlToReadable(s string) ([]string, error) {
 	response, err := http.Get(s)
 	if err != nil {
-		log.Fatal(err)
+		//log.Fatal(err)
+		return nil, err
 	}
 	defer response.Body.Close()
 
@@ -63,5 +64,5 @@ func HtmlToReadable(s string) []string {
 			}
 		}
 	}
-	return b
+	return b, nil
 }
